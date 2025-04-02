@@ -1,0 +1,5 @@
+mexec: mexec.o
+	gcc -o mexec mexec.o 
+
+mexec.o: mexec.c mexec.h
+	gcc -c mexec.c mexec.h

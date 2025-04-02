@@ -1,0 +1,223 @@
+
+
+läs in från argumenten (använd getopt)
+
+använd funktionen parse_makefile
+
+bestäm vilka mål som skall byggas (rekursiva anrop kommer behövas för att kolla om prereq kommer behövas byggas om eller inte)
+
+bygg målen kalla på en funktion som kollar vilka filer som behövs kompileras
+
+bygg de faktiska målen som behövs
+
+frigör minne för allokerad data
+
+hej hej
+
+
+
+MMAKE MED TYP FUNGERANDE ALGORITM:
+//include created headerfile
+#include "mmake.h"
+
+/* This C program... (add description)
+ *
+ * @file: mmake.c
+ * @author: Jonatan Westling(c22jwg@cs.umu.se)
+ * @version information:
+ *   2023-09-23: v1.0, first version.
+ */
+struct flags
+{
+	bool flag_B;
+	bool flag_s;
+	bool flag_f;
+};
+
+void build_targets(makefile *m, const char *targetnamem, flags *f);
+//bool needs_rebuilding()
+bool first_file_is_newer(const char *file1, const char *file2);
+
+char **get_cmd_targets(int argc, char *argv[]);
+
+
+int main(int argc, char *argv[])
+{
+
+	flags *my_flags = malloc(sizeof(flags));
+
+	my_flags->flag_B = false;
+	my_flags->flag_s = false;
+	my_flags->flag_f = false;
+	
+	char *file_name = NULL;
+	int opt;
+	while ((opt = (getopt(argc, argv, "fBs:"))) != -1)
+	{
+		switch (opt)
+		{
+		case 'f':
+			// get the path to the makefile
+			file_name = optarg;
+			my_flags->flag_B = true;
+
+			break;
+		case 'B':
+			// force rebuild requested
+			my_flags->flag_B = true;
+			break;
+		case 's':
+			// no outout to the terminal when running commands
+			my_flags->flag_s = true;
+			break;
+
+		default:
+			// something went wrong
+			fprintf(stderr, "Usage: %s [-t nsecs] [-n] name\n", argv[0]);
+			exit(EXIT_FAILURE);
+			break;
+		}
+	}
+
+	char *makefile_path = "mmakefile";
+	//if other makefile name was passed
+	if (file_name != NULL)
+	{
+		makefile_path = file_name;
+	}
+	//printf("%s\n", makefile_path);
+	//open the makefile
+	FILE *makefile_stream = NULL;
+	makefile_stream = fopen(makefile_path, "r");
+	if (makefile_stream == NULL)
+	{
+		perror("fopen");
+		exit(EXIT_FAILURE);
+	}
+	makefile *m = NULL;
+	m = parse_makefile(makefile_stream);
+	if (m == NULL)
+	{
+		fprintf(stderr, "Failed to parse makefile.\n");
+		fclose(makefile_stream);
+		exit(EXIT_FAILURE);
+	}
+	fclose(makefile_stream);
+
+	int i = 0;
+	if(optind < argc)
+	{
+		//get the one with default target to work first
+		//run with costum targets, probably need to pass what the flags are here
+		//THIS MEMORY NEEDS TO BE DEALLOCATED
+		char **targets = get_cmd_targets(argc, argv);
+		while(targets[i] != NULL)
+		{
+			build_targets(m, targets[i], my_flags);
+			i++;
+		}
+		
+		//free memory here mabye
+	}
+	else
+	{
+		//run with default target, probably need to pass what the flags are here
+		build_targets(m, makefile_default_target(m), my_flags);
+
+	}
+
+	return 0;
+}
+/**
+ * get_cmd_targets()- Creates a list with specified targets.
+ *
+ * @argc: An array of strings (pointer to a pointer to a char).
+ * @argv: The array with strings
+ * RETURNS: a pointer to the array that contain the spcified targets
+ */
+char **get_cmd_targets(int argc, char *argv[]){
+	char **cmd = NULL;
+	cmd = malloc(sizeof(char*)*(argc - optind));
+	if (cmd == NULL)
+	{
+		perror("Memory allocation failed.");
+		exit(EXIT_FAILURE);
+	}
+	int i = 0;
+	int j = optind;
+	//loop over and copy the targets
+	while (optind < argc)
+	{
+		if((cmd[i] = strdup(argv[j])) == NULL)
+		{
+			perror("Memory allocation falied");
+			exit(EXIT_FAILURE);
+		}
+		i++;
+		j++;
+	}
+	return cmd;
+}
+/**
+ * build_targets()- Build the targets either the default one or
+ * the specified targets.
+ *
+ * @m: a pointer to the struct that cantains the parsed_makefile
+ * @targetname: a string of the targets name
+ * RETURNS: nothing.
+ */
+void build_targets(makefile *m, const char *targetname, flags *f)
+{
+	// get the rules of the target
+	rule *target_rule = makefile_rule(m, targetname);
+
+	if (target_rule == NULL)
+	{
+		fprintf(stderr, "Bottom reached!\n");
+		return;
+	}
+	// get the prereqs of the target
+	const char **prereq = rule_prereq(target_rule);
+
+	fprintf(stderr, "Target: %s\n", targetname);
+	int i = 0;
+
+	while (prereq[i] != NULL)
+	{
+		fprintf(stderr, "Prereq: %s\n", prereq[i]);
+		i++;
+	}
+
+	int j = 0;
+	// const char *prereq = rule_prereq(target_rule);
+	while (prereq[j] != NULL)
+	{
+		build_targets(m, prereq[j], f);
+		j++;
+	}
+}
+
+bool first_file_is_newer(const char *file1, const char *file2)
+{
+	struct stat file_info1;
+	struct stat file_info2;
+
+	if (stat(file1, &file_info1) != 0)
+	{
+		perror("stat");
+		exit(EXIT_FAILURE);
+	}
+
+	if (stat(file2, &file_info2) != 0)
+	{
+		perror("stat");
+		exit(EXIT_FAILURE);
+	}
+
+	if (file_info1.st_mtime > file_info2.st_mtime)
+	{
+		return true;
+	}
+
+	return false;
+}

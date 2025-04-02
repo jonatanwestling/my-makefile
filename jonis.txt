@@ -1,0 +1,26 @@
+#Makefile for mmake.c, parser.c and parser.h
+CC = gcc
+CFLAGS = -g -std=gnu11 -Werror -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing-prototypes -Wold-style-definition
+
+SRC1 = mmake.c
+SRC2 = parser.c 
+OUT1 = mmake.o
+OUT2 = parser.o
+HDR1 = mmake.h
+HDR2 = parser.h 
+EXEC = mmake
+
+.PHONY: all clean
+
+all: $(EXEC)
+
+$(EXEC): $(OUT1) $(OUT2)
+	$(CC) $(CFLAGS) $(SRC1) $(SRC2) -o $(EXEC)
+
+$(OUT1): $(SRC1) $(HDR1)
+	$(CC) $(CFLAGS) -c $(SRC1) $(HDR1)
+
+$(OUT2): $(SRC2) $(HDR2)
+	$(CC) $(CFLAGS) -c $(SRC2) $(HDR2)
+clean:
+	rm -f $(EXEC)
